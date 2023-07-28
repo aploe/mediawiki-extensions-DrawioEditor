@@ -12,6 +12,7 @@ use MediaWiki\MediaWikiServices;
 use Parser;
 use PPFrame;
 use RequestContext;
+use Title;
 
 class DrawioEditor {
 
@@ -81,7 +82,7 @@ class DrawioEditor {
 	 *                             wikitext into html, or parser methods.
 	 * @param string|null $name File name of chart.
 	 * @param array $opts Further attributes as associative array:
-	 *                             width, height, max-height, type, interactive.
+	 *                             width, height, max-height, type.
 	 *
 	 * @return array HTML to insert in the page.
 	 */
@@ -92,9 +93,6 @@ class DrawioEditor {
 		$opt_type = array_key_exists( 'type', $opts )
 			? $opts[ 'type' ]
 			: $this->config->get( 'DrawioEditorImageType' );
-		$opt_interactive = array_key_exists( 'interactive', $opts )
-			? true
-			: $this->config->get( 'DrawioEditorImageInteractive' );
 		$opt_height = array_key_exists( 'height', $opts ) ? $opts[ 'height' ] : 'auto';
 		$opt_width = array_key_exists( 'width', $opts ) ? $opts[ 'width' ] : '100%';
 		$opt_max_width = array_key_exists( 'max-width', $opts ) ? $opts[ 'max-width' ] : false;
@@ -150,8 +148,8 @@ class DrawioEditor {
 		if ( $img ) {
 			$img_url_ts = null;
 			$displayImage = $img;
-			$hookRunner = MediaWikiServices::getInstance()->getHookContainer();
-			$hookRunner->run( 'DrawioGetFile', [ &$img, &$latest_is_approved, $parser->getUser(),
+			$hookRunner = $this->services->getHookContainer();
+			$hookRunner->run( 'DrawioGetFile', [ &$img, &$latest_is_approved, $parser->getUserIdentity(),
 			&$noApproved, &$displayImage ] );
 			$img_url_ts = $displayImage->getUrl();
 			$img_desc_url = $img->getDescriptionUrl();
@@ -176,12 +174,11 @@ class DrawioEditor {
 		}
 
 		/* prepare edit href */
-		$edit_ahref = sprintf( "<a href='javascript:editDrawio(\"%s\", %s, \"%s\", %s, %s, %s, %s,
+		$edit_ahref = sprintf( "<a href='javascript:editDrawio(\"%s\", %s, \"%s\", %s, %s, %s,
 		\"%s\", %s, \"%s\")'>" . wfMessage( 'edit' )->text() . "</a>",
 			$id,
 			json_encode( $img_name, JSON_HEX_QUOT | JSON_HEX_APOS ),
 			$opt_type,
-			$opt_interactive ? 'true' : 'false',
 			$opt_height === 'chart' ? 'true' : 'false',
 			$opt_width === 'chart' ? 'true' : 'false',
 			$opt_max_width === 'chart' ? 'true' : 'false',
@@ -193,10 +190,12 @@ class DrawioEditor {
 		/* output begin */
 		$output = '<div>';
 		$user = RequestContext::getMain()->getUser();
+		$permisionManager = $this->services->getPermissionManager();
+		$userHasRight = $permisionManager->userHasRight( $user, 'approverevisions' );
 		if ( $noApproved ) {
 			$output .= '<p class="successbox">' .
 			wfMessage( "drawioeditor-noapproved", $name )->text();
-			if ( $user->isAllowed( 'approverevisions' ) ) {
+			if ( $userHasRight ) {
 				$output .= ' <a href="' . $img_desc_url . '">'
 				. wfMessage( "drawioeditor-approve-link" ) . '</a>';
 			}
@@ -211,7 +210,7 @@ class DrawioEditor {
 					$output .= '<p class="successbox" id="approved-displaywarning">' .
 				wfMessage( "drawioeditor-approved-displaywarning" )->text();
 				}
-				if ( $user->isAllowed( 'approverevisions' ) ) {
+				if ( $userHasRight ) {
 					$output .= ' <a href="' . $img_desc_url . '">'
 					. wfMessage( "drawioeditor-changeapprove-link" ) . '</a>';
 				}
@@ -238,40 +237,29 @@ class DrawioEditor {
 			$img_style .= ' display:none;';
 		}
 
-		if ( $opt_interactive ) {
-			if ( !$img ) {
-				$img = $repo->findFile( $img_name );
-			}
-			if ( $img ) {
-				$img_fmt = '<object id="drawio-img-%s" data="%s" data-editurl="%s" type="image/svg+xml"
-				style="%s"></object>';
-				$img_html = sprintf( $img_fmt, $id, $img_url_ts, $img->getUrl(),  $img_style );
-			}
+		if ( !$img ) {
+			$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s"></img>';
+			$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
+			$img_html .= sprintf(
+				$img_fmt, $id, $img_url_ts,
+				'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style
+			);
+			$img_html .= '</a>';
 		} else {
-			if ( !$img ) {
-				$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s"></img>';
-				$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
-				$img_html .= sprintf(
-					$img_fmt, $id, $img_url_ts,
-					'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style
-				);
-				$img_html .= '</a>';
-			} else {
-				$mxDocumentExtractor = $this->getMXDocumentExtractor( $opt_type, $img->getRepo() );
-				$mxDocument = $mxDocumentExtractor->extractMXDocument( $img );
-				$imageMapGenerator = new ImageMapGenerator();
-				$imageMapName = 'drawio-map-' . $id;
-				$imageMap = $imageMapGenerator->generateImageMap( $mxDocument, $imageMapName );
-				$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s" usemap="#%s"></img>';
-				$img_fmt .= $imageMap;
-				$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
-				$img_html .= sprintf(
-					$img_fmt, $id, $img_url_ts,
-					'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style,
-					$imageMapName
-				);
-				$img_html .= '</a>';
-			}
+			$mxDocumentExtractor = $this->getMXDocumentExtractor( $opt_type, $img->getRepo() );
+			$mxDocument = $mxDocumentExtractor->extractMXDocument( $img );
+			$imageMapGenerator = new ImageMapGenerator();
+			$imageMapName = 'drawio-map-' . $id;
+			$imageMap = $imageMapGenerator->generateImageMap( $mxDocument, $imageMapName );
+			$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s" usemap="#%s"></img>';
+			$img_fmt .= $imageMap;
+			$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
+			$img_html .= sprintf(
+				$img_fmt, $id, $img_url_ts,
+				'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style,
+				$imageMapName
+			);
+			$img_html .= '</a>';
 		}
 
 		/* output image and optionally a placeholder if the image does not exist yet */
@@ -354,24 +342,17 @@ class DrawioEditor {
 	private function isReadOnly( $img ) {
 		$user = RequestContext::getMain()->getUser();
 		$parser = $this->services->getParser();
+		$pageRef = $parser->getPage();
+		$title = Title::castFromPageReference( $pageRef );
+		$isProtected = $title ?
+			$this->services->getRestrictionStore()->isProtected( $title, 'edit' ) : false;
 
 		return !$this->config->get( 'EnableUploads' ) ||
 				!$this->services->getPermissionManager()->userHasRight( $user, 'upload' ) ||
 				!$this->services->getPermissionManager()->userHasRight( $user, 'reupload' ) ||
 			( !$img && !$this->services->getPermissionManager()->userHasRight( $user, 'upload' ) ) ||
 			( !$img && !$this->services->getPermissionManager()->userHasRight( $user, 'reupload' ) ) ||
-			( $parser->getTitle() ? $parser->getTitle()->isProtected( 'edit' ) : false );
+			( $isProtected );
 	}
 
-	/**
-	 * TODO:Remove me
-	 *
-	 * @param string &$lckey
-	 * @return void
-	 */
-	public static function mockMessages( &$lckey ) {
-		if ( $lckey === 'drawio-droplet-name' || $lckey === 'drawio-droplet-description' ) {
-			$lckey = 'drawioconnector-tag-drawio-title';
-		}
-	}
 }
