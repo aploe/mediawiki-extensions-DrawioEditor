@@ -220,7 +220,7 @@ class DrawioEditor {
 		$output .= '<div id="drawio-img-box-' . $id . '">';
 
 		/* display edit link */
-		if ( !$this->isReadOnly( $img ) ) {
+		if ( !$this->isReadOnly( $img, $parser ) ) {
 			$output .= '<div align="right">';
 			$output .= '<span class="mw-editdrawio">';
 			$output .= '<span class="mw-editsection-bracket">[</span>';
@@ -252,13 +252,13 @@ class DrawioEditor {
 			$imageMapName = 'drawio-map-' . $id;
 			$imageMap = $imageMapGenerator->generateImageMap( $mxDocument, $imageMapName );
 			$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s" usemap="#%s"></img>';
-			$img_fmt .= $imageMap;
 			$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
 			$img_html .= sprintf(
 				$img_fmt, $id, $img_url_ts,
 				'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style,
 				$imageMapName
 			);
+			$img_html .= $imageMap;
 			$img_html .= '</a>';
 		}
 
@@ -337,22 +337,23 @@ class DrawioEditor {
 
 	/**
 	 * @param File|null $img
+	 * @param Parser $parser
 	 * @return bool
 	 */
-	private function isReadOnly( $img ) {
+	private function isReadOnly( $img, $parser ) {
 		$user = RequestContext::getMain()->getUser();
-		$parser = $this->services->getParser();
+		$permissionManager = $this->services->getPermissionManager();
 		$pageRef = $parser->getPage();
 		$title = Title::castFromPageReference( $pageRef );
-		$isProtected = $title ?
-			$this->services->getRestrictionStore()->isProtected( $title, 'edit' ) : false;
+		if ( !$title ) {
+			return true;
+		}
 
-		return !$this->config->get( 'EnableUploads' ) ||
-				!$this->services->getPermissionManager()->userHasRight( $user, 'upload' ) ||
-				!$this->services->getPermissionManager()->userHasRight( $user, 'reupload' ) ||
-			( !$img && !$this->services->getPermissionManager()->userHasRight( $user, 'upload' ) ) ||
-			( !$img && !$this->services->getPermissionManager()->userHasRight( $user, 'reupload' ) ) ||
-			( $isProtected );
+		$isProtected = $this->services->getRestrictionStore()->isProtected( $title, 'edit' );
+		$uploadsEnabled = $this->config->get( 'EnableUploads' );
+		$canUpload = $permissionManager->userCan( 'upload', $user, $title );
+		$canReupload = $permissionManager->userCan( 'reupload', $user, $title );
+
+		return !$uploadsEnabled || !$canUpload || !$canReupload || $isProtected;
 	}
-
 }
