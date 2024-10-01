@@ -345,7 +345,6 @@ class DrawioEditor {
 	 */
 	private function isReadOnly( $img, $parser ) {
 		$user = RequestContext::getMain()->getUser();
-<<<<<<< HEAD
 		$parser = $this->services->getParser();
 
 		return !$this->config->get( 'EnableUploads' ) ||
@@ -365,13 +364,6 @@ class DrawioEditor {
 	public static function mockMessages( &$lckey ) {
 		if ( $lckey === 'drawio-droplet-name' || $lckey === 'drawio-droplet-description' ) {
 			$lckey = 'drawioconnector-tag-drawio-title';
-=======
-		$permissionManager = $this->services->getPermissionManager();
-		$pageRef = $parser->getPage();
-		$title = Title::castFromPageReference( $pageRef );
-		if ( !$title ) {
-			return true;
->>>>>>> wikimedia-REL1_39
 		}
 
 		$isProtected = $this->services->getRestrictionStore()->isProtected( $title, 'edit' );
