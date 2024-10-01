@@ -21,7 +21,12 @@ ve.ui.DrawioInspector.static.selfCloseEmptyBody = false;
  */
 ve.ui.DrawioInspector.prototype.initialize = function () {
 	ve.ui.DrawioInspector.super.prototype.initialize.call( this );
-	this.filename = mw.config.get( 'wgTitle' ) + "-" + ( Math.floor( Math.random() * 100000000) + 1 );
+
+	var filenameProcessor = { processor: new drawioeditor.FilenameProcessor() };
+	mw.hook( 'drawioeditor.makeFilenameProcessor' ).fire( filenameProcessor );
+	this.filenameProcessor = filenameProcessor.processor;
+
+	this.filename = this.filenameProcessor.initializeFilename();
 
 	// remove input field with links in it
 	this.input.$element.remove();
@@ -39,47 +44,31 @@ ve.ui.DrawioInspector.prototype.createLayout = function ( ) {
 		padded: true
 	} );
 
-	// 'Used with Drawio tag' Label
-	this.insertLabel = new OO.ui.LabelWidget( {
-		label: OO.ui.deferMsg( 'drawioconnector-tag-drawio-desc' )
-	} );
-	
 	// InputWidget for file Name
-	this.fileNameInputWidget = new OO.ui.TextInputWidget();
+	this.fileNameInputWidget = new OO.ui.TextInputWidget( {
+		validate: this.filenameProcessor.validateFilename
+	} );
+	this.fileNameInputWidget.on( 'change', this.onFileNameChange, [], this );
 	this.fileNameInputLayout = new OO.ui.FieldLayout( this.fileNameInputWidget, {
 		align: 'left',
-		label: 'File Name'
-	} )
-
-	// InputWidget for file extension
-	this.savingFormatWidget = new OO.ui.ButtonSelectWidget( {
-		items: [
-			new OO.ui.ButtonOptionWidget( {
-				data: 'png',
-				label: 'png'
-			} ),
-			new OO.ui.ButtonOptionWidget( {
-				data: 'svg',
-				label: 'svg'
-			} )
-		]
+		label: OO.ui.deferMsg( 'drawioconnector-ve-drawio-tag-name' )
 	} );
-	this.savingFormatLayout = new OO.ui.FieldLayout( this.savingFormatWidget, {
-		align: 'left',
-		label: 'File Format'
-	} )
 
 	// set default values
 	this.fileNameInputWidget.setValue( this.filename );
-	this.fileNameInputWidget.setDisabled( true );
-	this.savingFormatWidget.selectItem( this.savingFormatWidget.items[0] );
 
-	this.indexLayout.$element.append( 
-		this.insertLabel.$element,
-		this.fileNameInputLayout.$element,
-		this.savingFormatLayout.$element 
+	this.indexLayout.$element.append(
+		this.fileNameInputLayout.$element
 	);
-}
+};
+
+ve.ui.DrawioInspector.prototype.onFileNameChange = function () {
+	var actions = this.actions;
+	actions.setAbilities( { done: false } );
+	this.fileNameInputWidget.getValidity().done( function() {
+		actions.setAbilities( { done: true } );
+	} );
+};
 
 ve.ui.DrawioInspector.prototype.getSetupProcess = function ( data ) {
 	return ve.ui.DrawioInspector.super.prototype.getSetupProcess.call( this, data )
@@ -87,19 +76,15 @@ ve.ui.DrawioInspector.prototype.getSetupProcess = function ( data ) {
 			this.selectedNode.getAttribute( 'mw' ).attrs;
 			this.actions.setAbilities( { done: true } );
 		}, this );
-}	
+};
 
 ve.ui.DrawioInspector.prototype.updateMwData = function ( mwData ) {
 	ve.ui.DrawioInspector.super.prototype.updateMwData.call( this, mwData );
-	
+
 	var filename = this.fileNameInputWidget.getValue();
-	if ( filename.match( /[a-zA-Z0-9\s_\\.\-\(\):]/ ) ) {
-		mwData.attrs.filename = filename;
-	}
-	mwData.attrs.type = this.savingFormatWidget.findSelectedItem().getData();
-}
+	// Get rid of the symbols which should not be in the filename
+	mwData.attrs.filename = this.filenameProcessor.sanitizeFilename( filename );
+};
 
 /* Registration */
 ve.ui.windowFactory.register( ve.ui.DrawioInspector );
-
-

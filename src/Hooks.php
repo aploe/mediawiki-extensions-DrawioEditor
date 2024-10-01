@@ -4,7 +4,6 @@ namespace MediaWiki\Extension\DrawioEditor;
 
 use Html;
 use MediaWiki\MediaWikiServices;
-use Revision;
 use Title;
 
 class Hooks {
@@ -28,8 +27,34 @@ class Hooks {
 			return true;
 		}
 		if ( strpos( $oImageElement->getAttribute( 'id' ), "drawio-img-" ) !== false ) {
-			$oImageElement->removeAttribute( 'style' );
+			$style = $oImageElement->getAttribute( 'style' );
+			$matches = [];
+			preg_match( '#max-width: (\d*?)px;#', $style, $matches );
+			if ( $matches[1] > 690 ) {
+				$oImageElement->setAttribute( 'style', 'width: 99%' );
+			} else {
+				$oImageElement->setAttribute( 'style', 'width: ' . $matches[1] . 'px' );
+			}
 		}
+		return true;
+	}
+
+	/**
+	 * Embeds CSS into pdf export
+	 *
+	 * @param array &$aTemplate
+	 * @param array &$aStyleBlocks
+	 * @return bool Always true to keep hook running
+	 */
+	public static function onBSUEModulePDFBeforeAddingStyleBlocks( &$aTemplate, &$aStyleBlocks ) {
+		$css = [
+			".bs-page-content .mw-editdrawio { display: none; } ",
+			'[id^="drawio-img-"] { padding-top: 10px; }',
+			'img[id^="drawio-img-"] { height: auto; }'
+		];
+
+		$aStyleBlocks['Drawio'] = implode( ' ', $css );
+
 		return true;
 	}
 
@@ -54,8 +79,9 @@ class Hooks {
 			"old_text LIKE '%{{#drawio: " . $sFileName . "|%'",
 		];
 
-		$oDBR = wfGetDB( DB_REPLICA );
-		$oRes = $oDBR->select(
+		$services = MediaWikiServices::getInstance();
+		$dbr = $services->getDBLoadBalancer()->getConnection( DB_REPLICA );
+		$oRes = $dbr->select(
 				[ 'page', 'revision', 'slots', 'text' ],
 				[ 'page_namespace', 'rev_id', 'page_title' ],
 				'(' . implode( ' OR ', $aConds ) .
@@ -64,9 +90,10 @@ class Hooks {
 		);
 
 		$aLinks = [];
-		$linkRenderer = MediaWikiServices::getInstance()->getLinkRenderer();
+		$revisionLookup = $services->getRevisionLookup();
+		$linkRenderer = $services->getLinkRenderer();
 		foreach ( $oRes as $oRow ) {
-			$oRevision = Revision::newFromId( $oRow->rev_id );
+			$oRevision = $revisionLookup->getRevisionById( $oRow->rev_id );
 			if ( $oRevision->isCurrent() ) {
 				$title = Title::makeTitle( $oRow->page_namespace, $oRow->page_title );
 				$sLink = $linkRenderer->makeLink( $title );
@@ -75,7 +102,7 @@ class Hooks {
 			}
 		}
 
-		$pagePropsRes = $oDBR->select(
+		$pagePropsRes = $dbr->select(
 			'page_props',
 			'pp_page',
 			[
