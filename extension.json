@@ -1,11 +1,13 @@
 {
 	"name": "DrawioEditor",
 	"license-name": "GPL-3.0-only",
-	"version": "3.0.0-alpha",
+	"version": "3.1.0-alpha",
 	"author": [
 		"Markus Gebert",
-		"[https://www.hallowelt.com Hallo Welt! GmbH]"
+		"[https://www.hallowelt.com Hallo Welt! GmbH]",
+		"Hamish Slater"
 	],
+	"url": "https://www.mediawiki.org/wiki/Extension:DrawioEditor",
 	"attributes": {
 		"ContentDroplets": {
 			"Droplets": {
@@ -16,13 +18,43 @@
 		},
 		"DrawioEditor": {
 			"InspectorPluginModules": []
+		},
+		"PDFCreator": {
+			"StyleBlocksProvider": {
+				"DrawioEditorStyleBlock": {
+					"class": "MediaWiki\\Extension\\DrawioEditor\\Integration\\PDFCreator\\StyleBlockProvider\\StyleBlock"
+				}
+			}
+		},
+		"BlueSpiceInstanceStatus": {
+			"ApiInstanceStatusProvider": {
+				"ext-drawioeditor": {
+					"class": "\\MediaWiki\\Extension\\DrawioEditor\\Integration\\StatusCheckProvider",
+					"services": [ "MainConfig", "HttpRequestFactory" ]
+				}
+			}
+		},
+		"BlueSpiceFoundation": {
+			"ConfigDefinitionRegistry": {
+				"DrawioEditorBackendUrl": "\\MediaWiki\\Extension\\DrawioEditor\\ConfigDefinition\\BackendUrl::getInstance",
+				"DrawioEditorDefaultEditmode": "\\MediaWiki\\Extension\\DrawioEditor\\ConfigDefinition\\DefaultEditmode::getInstance",
+				"DrawioEditorCustomShapeLibraries": "\\MediaWiki\\Extension\\DrawioEditor\\ConfigDefinition\\CustomShapeLibraries::getInstance"
+			}
+		},
+		"MWStakeContentProvisioner": {
+			"ContentManifests": {
+				"DefaultContentProvisioner": [
+					"extensions/DrawioEditor/data/Content/manifest.json"
+				]
+			}
 		}
 	},
 	"descriptionmsg": "drawioeditor-desc",
 	"type": "parserhook",
 	"requires": {
-		"MediaWiki": ">= 1.39.0"
+		"MediaWiki": ">= 1.43.0"
 	},
+	"callback": "mwsInitComponents",
 	"ExtensionMessagesFiles": {
 		"DrawioEditorMagic": "DrawioEditor.magic.php"
 	},
@@ -34,15 +66,28 @@
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\DrawioEditor\\": "src/"
 	},
+	"APIModules": {
+		"drawioeditor-save-diagram": {
+			"class": "MediaWiki\\Extension\\DrawioEditor\\Api\\SaveDrawioDiagram",
+			"services": [ "RepoGroup", "MimeAnalyzer" ]
+		}
+	},
 	"ResourceModules": {
 		"ext.drawioeditor.styles": {
 			"styles": "ext.drawioeditor.css"
 		},
 		"ext.drawioeditor": {
-			"scripts": "ext.drawioeditor.js",
+			"packageFiles": [
+				"ext.drawioeditor.js",
+				{
+					"name": "customShapeLibraries.json",
+					"callback": "MediaWiki\\Extension\\DrawioEditor\\ClientConfig::getCustomShapeLibraries"
+				}
+			],
 			"dependencies": [
 				"jquery.ui",
-				"mediawiki.api"
+				"mediawiki.api",
+				"oojs-ui"
 			],
 			"messages": [
 				"drawioeditor-approved-editwarning",
@@ -62,27 +107,47 @@
 			]
 		},
 		"ext.drawioconnector.visualEditor": {
-			"scripts": [
-				"ve/ve.dm.DrawioNode.js",
-				"ve/ve.ce.DrawioNode.js",
-				"ve/ve.ui.DrawioInspector.js",
-				"ve/ve.ui.DrawioNodeTool.js",
-				"FilenameProcessor.js"
-			],
 			"styles": [
 				"ext.drawio.droplet.css"
 			],
-			"dependencies": [
-				"ext.visualEditor.mwcore",
-				"oojs-ui"
+			"messages": [
+				"drawioeditor-tag-title",
+				"drawioeditor-ve-drawio-title",
+				"drawioeditor-ve-drawio-tag-name",
+				"drawioeditor-ve-drawio-tag-name-help",
+				"drawioeditor-usage",
+				"drawioeditor-droplet-name",
+				"drawioeditor-droplet-description",
+				"drawioeditor-ve-drawio-alt-label",
+				"drawioeditor-ve-drawio-alt-help",
+				"drawioeditor-ve-drawio-alignment-label",
+				"drawioeditor-ve-drawio-alignment-help",
+				"drawioeditor-details"
+			]
+		},
+		"ext.drawio.tag.form": {
+			"scripts": [
+				"FilenameProcessor.js",
+				"ext.drawio.tag.form.js"
 			],
 			"messages": [
-				"drawio-tag-title",
-				"drawioconnector-ve-drawio-title",
-				"drawioconnector-ve-drawio-tag-name",
-				"drawio-usage",
-				"drawio-droplet-name",
-				"drawio-droplet-description"
+				"drawioeditor-ve-drawio-tag-name",
+				"drawioeditor-ve-drawio-tag-name-help",
+				"drawioeditor-ve-drawio-editmode-label-inline",
+				"drawioeditor-ve-drawio-editmode-label-fullscreen",
+				"drawioeditor-ve-drawio-editmode-label",
+				"drawioeditor-ve-drawio-editmode-help",
+				"drawioeditor-ve-drawio-alt-label",
+				"drawioeditor-ve-drawio-alt-help",
+				"drawioeditor-ve-drawio-alignment-label-center",
+				"drawioeditor-ve-drawio-alignment-label-left",
+				"drawioeditor-ve-drawio-alignment-label-right",
+				"drawioeditor-ve-drawio-alignment-label",
+				"drawioeditor-ve-drawio-alignment-help"
+			],
+			"dependencies": [
+				"ext.forms.formelements.bootstrap",
+				"ext.forms.standalone"
 			]
 		}
 	},
@@ -91,30 +156,38 @@
 		"remoteExtPath": "DrawioEditor/resources"
 	},
 	"Hooks": {
-		"ParserFirstCallInit": [
-			"tag",
-			"MediaWiki\\Extension\\DrawioEditor\\Hook\\ParserFirstCallInit\\SetFunctionHook::callback"
-		],
 		"DrawioGetFile": "approveRevsSetStableFile",
-		"BSUEModulePDFFindFiles": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks::onBSUEModulePDFFindFiles",
-		"BSUEModulePDFBeforeAddingStyleBlocks": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks::onBSUEModulePDFBeforeAddingStyleBlocks",
-		"ImagePageAfterImageLinks": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks::onImagePageAfterImageLinks"
+		"ImagePageAfterImageLinks": "hooks",
+		"MWStakeGenericTagHandlerInitTags": "registerTags"
 	},
 	"HookHandlers": {
-		"tag": {
-			"class": "\\MediaWiki\\Extension\\DrawioEditor\\Hook\\Tag"
-		},
 		"approveRevsSetStableFile": {
 			"class": "MediaWiki\\Extension\\DrawioEditor\\Hook\\ApprovedRevsSetStableFile",
 			"services": [ "DBLoadBalancer", "RepoGroup" ]
+		},
+		"hooks": {
+			"class": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks"
+		},
+		"registerTags": {
+			"class": "MediaWiki\\Extension\\DrawioEditor\\Hook\\RegisterTags",
+			"services": [ "MainConfig" ]
 		}
 	},
 	"config": {
 		"DrawioEditorImageType": {
-			"value": "png"
+			"value": "png",
+			"description": "Supported values: png, svg"
 		},
 		"DrawioEditorBackendUrl": {
 			"value": "https://embed.diagrams.net"
+		},
+		"DrawioEditorDefaultEditmode": {
+			"value": "inline",
+			"description": "Supported values: inline, fullscreen"
+		},
+		"DrawioEditorCustomShapeLibraries": {
+			"value": [],
+			"description": "List of URLs to custom shape libraries to load in the shapes panel."
 		}
 	},
 	"manifest_version": 2

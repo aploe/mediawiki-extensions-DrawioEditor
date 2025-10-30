@@ -5,7 +5,7 @@ declare( strict_types = 1 );
 namespace MediaWiki\Extension\DrawioEditor\ContentDroplets;
 
 use MediaWiki\Extension\ContentDroplets\Droplet\TagDroplet;
-use Message;
+use MediaWiki\Message\Message;
 
 class DrawioDroplet extends TagDroplet {
 
@@ -13,14 +13,14 @@ class DrawioDroplet extends TagDroplet {
 	 * @inheritDoc
 	 */
 	public function getName(): Message {
-		return Message::newFromKey( 'drawio-droplet-name' );
+		return Message::newFromKey( 'drawioeditor-droplet-name' );
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getDescription(): Message {
-		return Message::newFromKey( 'drawio-droplet-description' );
+		return Message::newFromKey( 'drawioeditor-droplet-description' );
 	}
 
 	/**
@@ -55,14 +55,12 @@ class DrawioDroplet extends TagDroplet {
 	 * @return array
 	 */
 	protected function getAttributes(): array {
-		return [ 'filename' ];
-	}
-
-	/**
-	 * @return bool
-	 */
-	protected function hasContent(): bool {
-		return false;
+		return [
+			'filename' => "",
+			'editmode' => "",
+			'alt' => "",
+			'alignment' => "",
+		];
 	}
 
 	/**
@@ -70,5 +68,9 @@ class DrawioDroplet extends TagDroplet {
 	 */
 	public function getVeCommand(): ?string {
 		return 'drawioCommand';
+	}
+
+	protected function hasContent(): bool {
+		return false;
 	}
 }
