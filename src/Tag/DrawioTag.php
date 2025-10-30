@@ -3,7 +3,7 @@
 namespace MediaWiki\Extension\DrawioEditor\Tag;
 
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Message\Message;
+use Message;
 use MWStake\MediaWiki\Component\FormEngine\FormLoaderSpecification;
 use MWStake\MediaWiki\Component\GenericTagHandler\ClientTagSpecification;
 use MWStake\MediaWiki\Component\GenericTagHandler\GenericTag;

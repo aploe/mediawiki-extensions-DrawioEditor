@@ -8,7 +8,7 @@ use DOMXPath;
 use File;
 use MediaWiki\Api\ApiBase;
 use MediaWiki\Api\ApiMain;
-use MediaWiki\Message\Message;
+use Message;
 use MediaWiki\Specials\SpecialUpload;
 use MediaWiki\Title\Title;
 use MWFileProps;

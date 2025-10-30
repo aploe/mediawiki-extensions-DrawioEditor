@@ -5,7 +5,7 @@ namespace MediaWiki\Extension\DrawioEditor\ConfigDefinition;
 use BlueSpice\ConfigDefinition\ArraySetting;
 use BlueSpice\ConfigDefinition\IOverwriteGlobal;
 use MediaWiki\HTMLForm\Field\HTMLSelectField;
-use MediaWiki\Message\Message;
+use Message;
 
 class DefaultEditmode extends ArraySetting implements IOverwriteGlobal {
 

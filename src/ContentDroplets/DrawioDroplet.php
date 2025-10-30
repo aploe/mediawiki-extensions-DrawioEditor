@@ -5,7 +5,7 @@ declare( strict_types = 1 );
 namespace MediaWiki\Extension\DrawioEditor\ContentDroplets;
 
 use MediaWiki\Extension\ContentDroplets\Droplet\TagDroplet;
-use MediaWiki\Message\Message;
+use Message;
 
 class DrawioDroplet extends TagDroplet {
 

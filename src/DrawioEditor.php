@@ -11,7 +11,7 @@ use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\PNG;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\SVG;
 use MediaWiki\Html\Html;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Message\Message;
+use Message;
 use MediaWiki\Parser\Parser;
 use MediaWiki\Parser\PPFrame;
 use MediaWiki\Title\Title;
