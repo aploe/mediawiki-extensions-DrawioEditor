@@ -2,16 +2,16 @@
 
 namespace MediaWiki\Extension\DrawioEditor\Hook\ParserFirstCallInit;
 
+use Exception;
 use MediaWiki\Extension\DrawioEditor\DrawioEditor;
-use MWException;
-use Parser;
+use MediaWiki\Parser\Parser;
 
 class SetFunctionHook {
 
 	/**
 	 * @param Parser &$parser
 	 * @return bool
-	 * @throws MWException
+	 * @throws Exception
 	 */
 	public static function callback( &$parser ) {
 		$drawioEditor = new DrawioEditor();

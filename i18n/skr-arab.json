@@ -4,5 +4,8 @@
 			"Saraiki"
 		]
 	},
-	"drawioconnector-ve-drawio-tag-name": "ناں"
+	"drawioconnector-ve-drawio-tag-name": "ناں",
+	"drawioconnector-ve-drawio-scale-label": "پیمانہ",
+	"drawioeditor-ve-drawio-tag-name": "ناں",
+	"drawioeditor-details": "تفصیلاں"
 }

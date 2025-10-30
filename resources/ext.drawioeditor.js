@@ -50,6 +50,24 @@ function DrawioEditor( id, filename, type, updateHeight, updateWidth,
 	// Determine if page is secured over https (aploe)
 	var iframeviahttps = 0;
 	if (location.protocol === 'https:') iframeviahttps = 1;
+	const customShapeLibraries = require( './customShapeLibraries.json' );
+
+	const params = new URLSearchParams( {
+		embed: '1',
+		proto: 'json',
+		spin: '1',
+		analytics: '0',
+		picker: '0',
+		lang: this.language,
+		ui: 'min',
+		libraries: '1',
+		configure: '1',
+		splash: '0'
+	} );
+
+	// Append clibs manually so semicolons remain unencoded
+	const clibsParam = `&clibs=${ customShapeLibraries.customShapeLibraries }`;
+	const iframeUrl = `${ this.baseUrl }/?${ params.toString() }${ clibsParam }`;
 
 	this.iframe = $('<iframe>', {
 		// Add https to base url (aploe)
@@ -195,44 +213,65 @@ DrawioEditor.prototype.loadImage = function() {
 	this.downloadFromWiki();
 }
 
-DrawioEditor.prototype.uploadToWiki = function(blob) {
-	var that = this;
+/**
+ * Upload the Drawio diagram to the wiki using the custom API module.
+ *
+ * @param {Blob} blob - The diagram file blob to upload.
+ */
+DrawioEditor.prototype.uploadToWiki = async function ( blob ) {
+	const formData = new FormData();
+	formData.append( 'action', 'drawioeditor-save-diagram' );
+	formData.append( 'token', mw.user.tokens.get( 'csrfToken' ) );
+	formData.append( 'format', 'json' );
+	formData.append( 'file', blob, this.filename );
 
-	var api = new mw.Api();
-	api.upload(blob, { filename: this.filename, ignorewarnings: true, format: 'json' } )
-		.done( function(data) {
-			if (!data.upload) {
-				if (data.error) {
-						that.showDialog('Save failed',
-				   'The wiki returned the follwing error when uploading:<br>' +
-				   data.error.info);
-			} else {
-						that.showDialog('Save failed',
-				   'The upload to the wiki failed.' +
-				   '<br>Check javascript console for details.');
-			}
-			console.log('upload to wiki failed');
-			console.log(data);
-			} else {
-				that.updateImage(data.upload.imageinfo);
-				that.hideSpinner();
-			}
-		})
-		.fail( function(retStatus, data) {
-			that.hideSpinner();
-			if( retStatus == "exists" ){
-				that.updateImage(data.upload.imageinfo);
-			} else {
-				if ( data.error ) {
-					that.showDialog('Save failed',
-					'Upload to wiki failed!' +
-				'<br>Error: ' + data.error.info +
-				'<br>Check javascript console for details.');
-				}
-			}
-		});
+	try {
+		// Perform the upload request
+		const response = await fetch( mw.util.wikiScript( 'api' ), {
+			method: 'POST',
+			body: formData,
+			credentials: 'same-origin'
+		} );
 
-}
+		if ( !response.ok ) {
+			throw new Error( `HTTP ${ response.status } - ${ response.statusText }` );
+		}
+
+		const data = await response.json();
+
+		if ( data.upload ) {
+			// Upload succeeded, update image
+			this.updateImage( data.upload.imageinfo );
+			this.hideSpinner();
+			return;
+		}
+
+		this.hideSpinner();
+
+		if ( data.error ) {
+			// Known API error
+			this.showDialog(
+				'Save failed',
+				`Upload error: ${ data.error.info }`
+			);
+		} else {
+			// Unexpected or malformed API response
+			this.showDialog(
+				'Save failed',
+				'Unexpected response. See console for details.'
+			);
+			console.error( '[DrawioEditor] Unexpected upload response:', data ); // eslint-disable-line no-console
+		}
+	} catch ( error ) {
+		// Network or fatal error
+		this.hideSpinner();
+		this.showDialog(
+			'Save failed',
+			`Upload failed: ${ error.message }. See console for details.`
+		);
+		console.error( '[DrawioEditor] Upload error:', error ); // eslint-disable-line no-console
+	}
+};
 
 DrawioEditor.prototype.save = function(datauri) {
 	// the data in the data uri contains both the image _and_ draw.io XML, see
@@ -343,9 +382,9 @@ window.editDrawio = function(id, filename, type, updateHeight, updateWidth, upda
 	}
 };
 
-function drawioHandleMessage(e) {
+async function drawioHandleMessage( e ) {
 	// we only act on event coming from "baseUrl" iframes
-	if (window.drawioEditorBaseUrl.indexOf( e.origin ) !== 0)
+	if ( !window?.drawioEditorBaseUrl?.startsWith( e.origin ) ) {
 		return;
 
 	if (!editor)
@@ -353,7 +392,11 @@ function drawioHandleMessage(e) {
 
 	evdata = JSON.parse(e.data);
 
-	switch(evdata['event']) {
+	switch ( evdata.event ) {
+		case 'configure':
+			await configureCallback( e );
+			break;
+
 		case 'init':
 			editor.initCallback();
 			break;
@@ -384,7 +427,48 @@ function drawioHandleMessage(e) {
 	}
 };
 
-window.addEventListener('message', drawioHandleMessage);
+async function configureCallback( e ) {
+	try {
+		const response = await fetch(
+			mw.util.wikiScript() + '?' + new URLSearchParams( {
+				action: 'raw',
+				title: 'MediaWiki:DrawioEditorConfig.json',
+				ctype: 'application/json'
+			} )
+		);
+
+		if ( !response.ok ) {
+			throw new Error( `HTTP error ${ response.status }` );
+		}
+
+		let config = {
+			defaultAdaptiveColors: 'none'
+		};
+		const contentType = response.headers.get( 'Content-Type' );
+		const text = await response.text();
+
+		if ( !text.trim() ) {
+			console.warn( '[DrawioEditor] Config page is empty. Using default config.' ); // eslint-disable-line no-console
+		} else if ( contentType?.includes( 'application/json' ) || text.trim().startsWith( '{' ) ) {
+			try {
+				config = JSON.parse( text );
+			} catch ( parseErr ) {
+				console.warn( '[DrawioEditor] Failed to parse JSON in config. Using default config.', parseErr ); // eslint-disable-line no-console
+			}
+		} else {
+			console.warn( '[DrawioEditor] Config content not JSON-like. Using default config.' ); // eslint-disable-line no-console
+		}
+
+		e.source.postMessage( JSON.stringify( {
+			action: 'configure',
+			config
+		} ), e.origin );
+	} catch ( err ) {
+		console.error( '[DrawioEditor] Configure load failed:', err ); // eslint-disable-line no-console
+	}
+}
+
+window.addEventListener( 'message', drawioHandleMessage );
 
 $( document ).on( 'click', '.drawioeditor-edit', function ( e ) {
 	let data = $(this).data();

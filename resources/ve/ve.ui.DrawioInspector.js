@@ -8,7 +8,7 @@ OO.inheritClass( ve.ui.DrawioInspector, ve.ui.MWLiveExtensionInspector );
 
 /* Static properties */
 ve.ui.DrawioInspector.static.name = 'drawioInspector';
-ve.ui.DrawioInspector.static.title = mw.message( 'drawioconnector-ve-drawio-title' ).text();
+ve.ui.DrawioInspector.static.title = mw.message( 'drawioeditor-ve-drawio-title' ).text();
 ve.ui.DrawioInspector.static.modelClasses = [ ve.dm.DrawioNode ];
 ve.ui.DrawioInspector.static.dir = 'ltr';
 
@@ -51,14 +51,37 @@ ve.ui.DrawioInspector.prototype.createLayout = function ( ) {
 	this.fileNameInputWidget.on( 'change', this.onFileNameChange, [], this );
 	this.fileNameInputLayout = new OO.ui.FieldLayout( this.fileNameInputWidget, {
 		align: 'left',
-		label: OO.ui.deferMsg( 'drawioconnector-ve-drawio-tag-name' )
+		label: OO.ui.deferMsg( 'drawioeditor-ve-drawio-tag-name' ),
+		help: OO.ui.deferMsg( 'drawioeditor-ve-drawio-tag-name-help' )
 	} );
-
-	// set default values
 	this.fileNameInputWidget.setValue( this.filename );
 
+	// InputWidget for Alt Text
+	this.altTextInputWidget = new OO.ui.TextInputWidget();
+	this.altTextInputLayout = new OO.ui.FieldLayout( this.altTextInputWidget, {
+		align: 'left',
+		label: OO.ui.deferMsg( 'drawioeditor-ve-drawio-alt-label' ),
+		help: OO.ui.deferMsg( 'drawioeditor-ve-drawio-alt-help' )
+	} );
+
+	// InputWidget for alignment
+	this.alignmentInputWidget = new OO.ui.DropdownInputWidget( {
+		options: [
+			{ data: 'center', label: 'center' },
+			{ data: 'left', label: 'left' },
+			{ data: 'right', label: 'right' }
+		]
+	} );
+	this.alignmentInputLayout = new OO.ui.FieldLayout( this.alignmentInputWidget, {
+		align: 'left',
+		label: OO.ui.deferMsg( 'drawioeditor-ve-drawio-alignment-label' ),
+		help: OO.ui.deferMsg( 'drawioeditor-ve-drawio-alignment-help' )
+	} );
+
 	this.indexLayout.$element.append(
-		this.fileNameInputLayout.$element
+		this.fileNameInputLayout.$element,
+		this.altTextInputLayout.$element,
+		this.alignmentInputLayout.$element
 	);
 };
 
@@ -72,8 +95,17 @@ ve.ui.DrawioInspector.prototype.onFileNameChange = function () {
 
 ve.ui.DrawioInspector.prototype.getSetupProcess = function ( data ) {
 	return ve.ui.DrawioInspector.super.prototype.getSetupProcess.call( this, data )
-		.next( function () {
-			this.selectedNode.getAttribute( 'mw' ).attrs;
+		.next( () => {
+			const attributes = this.selectedNode.getAttribute( 'mw' ).attrs;
+			if ( attributes.filename ) {
+				this.fileNameInputWidget.setValue( attributes.filename );
+			}
+			if ( attributes.alt ) {
+				this.altTextInputWidget.setValue( attributes.alt );
+			}
+			if ( attributes.alignment ) {
+				this.alignmentInputWidget.setValue( attributes.alignment );
+			}
 			this.actions.setAbilities( { done: true } );
 		}, this );
 };
@@ -81,9 +113,14 @@ ve.ui.DrawioInspector.prototype.getSetupProcess = function ( data ) {
 ve.ui.DrawioInspector.prototype.updateMwData = function ( mwData ) {
 	ve.ui.DrawioInspector.super.prototype.updateMwData.call( this, mwData );
 
-	var filename = this.fileNameInputWidget.getValue();
+	const filename = this.fileNameInputWidget.getValue();
+	const altText = this.altTextInputWidget.getValue();
+	const alignment = this.alignmentInputWidget.getValue();
+
 	// Get rid of the symbols which should not be in the filename
 	mwData.attrs.filename = this.filenameProcessor.sanitizeFilename( filename );
+	mwData.attrs.alt = altText;
+	mwData.attrs.alignment = alignment;
 };
 
 /* Registration */
