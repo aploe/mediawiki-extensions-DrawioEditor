@@ -2,19 +2,17 @@
 
 namespace MediaWiki\Extension\DrawioEditor;
 
+use Config;
 use File;
 use FileRepo;
-use MediaWiki\Config\Config;
-use MediaWiki\Context\RequestContext;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\NullExtractor;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\PNG;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\SVG;
-use MediaWiki\Html\Html;
 use MediaWiki\MediaWikiServices;
-use Message;
-use MediaWiki\Parser\Parser;
-use MediaWiki\Parser\PPFrame;
-use MediaWiki\Title\Title;
+use Parser;
+use PPFrame;
+use RequestContext;
+use Title;
 
 class DrawioEditor {
 
@@ -92,25 +90,18 @@ class DrawioEditor {
 		/* disable caching before any output is generated */
 		$parser->getOutput()->updateCacheExpiry( 0 );
 
-		$opt_type = $opts[ 'type' ] ?? $this->config->get( 'DrawioEditorImageType' );
-		$opt_height = $opts[ 'height' ] ?? 'auto';
-		$opt_width = $opts[ 'width' ] ?? '100%';
-		$opt_max_width = $opts[ 'max-width' ] ?? false;
-		$opt_alt = $opts[ 'alt' ] ?? false;
-		$alignment = $opts[ 'alignment' ] ?? 'center';
-		$edit_mode = $opts[ 'editmode' ] ?? $this->config->get( 'DrawioEditorDefaultEditmode' );
+		$opt_type = array_key_exists( 'type', $opts )
+			? $opts[ 'type' ]
+			: $this->config->get( 'DrawioEditorImageType' );
+		$opt_height = array_key_exists( 'height', $opts ) ? $opts[ 'height' ] : 'auto';
+		$opt_width = array_key_exists( 'width', $opts ) ? $opts[ 'width' ] : '100%';
+		$opt_max_width = array_key_exists( 'max-width', $opts ) ? $opts[ 'max-width' ] : false;
 
 		/* process input */
 		if ( $name == null || !strlen( $name ) ) {
 			return $this->errorMessage( 'Usage Error' );
 		}
-		$opt_type = strtolower( $opt_type );
-		if ( $opt_type === 'svg' ) {
-			// allow fallback to png
-			$tryTypes = [ 'svg', 'png' ];
-		} elseif ( $opt_type === 'png' ) {
-			$tryTypes = [ 'png' ];
-		} else {
+		if ( !in_array( $opt_type, [ 'svg', 'png' ] ) ) {
 			return $this->errorMessage( 'Invalid type' );
 		}
 
@@ -138,59 +129,37 @@ class DrawioEditor {
 		$name = wfStripIllegalFilenameChars( $name );
 		$dispname = htmlspecialchars( $name, ENT_QUOTES );
 
-		if ( $opt_alt ) {
-			$alt = htmlspecialchars( $opt_alt, ENT_QUOTES );
-		} else {
-			$alt = $name;
-		}
-
 		/* random id to reference html elements */
 		$id = mt_rand();
 
 		/* prepare image information */
+		$img_name = $name . ".drawio." . $opt_type;
 		$repo = $this->services->getRepoGroup();
-		$img = null;
-		$img_name = "$name.$opt_type";
+		$img = $repo->findFile( $img_name );
 
-		foreach ( $tryTypes as $ext ) {
-			foreach ( [ "$name.drawio.$ext", "$name.$ext" ] as $imgNameTry ) {
-				$img = $repo->findFile( $imgNameTry );
-				if ( $img ) {
-					$opt_type = $ext;
-					$img_name = $imgNameTry;
-					break 2;
-				}
-			}
+		if ( !$img ) {
+			// fallback
+			$img_name = $name . '.' . $opt_type;
+			$img = $repo->findFile( $img_name );
 		}
 
 		$noApproved = false;
 		$latest_is_approved = true;
-
-		$img_url_ts = '';
-		$img_desc_url = '';
-		$img_height = 0;
-		$img_width = 0;
-
 		if ( $img ) {
+			$img_url_ts = null;
 			$displayImage = $img;
 			$hookRunner = $this->services->getHookContainer();
-			$hookRunner->run( 'DrawioGetFile', [
-				&$img,
-				&$latest_is_approved,
-				$parser->getUserIdentity(),
-				&$noApproved,
-				&$displayImage
-			] );
-
+			$hookRunner->run( 'DrawioGetFile', [ &$img, &$latest_is_approved, $parser->getUserIdentity(),
+			&$noApproved, &$displayImage ] );
 			$img_url_ts = $displayImage->getUrl();
-			$ts = $displayImage->getTimestamp();
-			if ( $ts ) {
-				$img_url_ts .= "?t=$ts";
-			}
-
-			$img_desc_url = $displayImage->getDescriptionUrl();
-			$img_height = $displayImage->getHeight() . 'px';
-			$img_width = $displayImage->getWidth() . 'px';
+			$img_desc_url = $img->getDescriptionUrl();
+			$img_height = $img->getHeight() . 'px';
+			$img_width = $img->getWidth() . 'px';
+		} else {
+			$img_url_ts = '';
+			$img_desc_url = '';
+			$img_height = 0;
+			$img_width = 0;
 		}
 
 		$css_img_height = $opt_height === 'chart' ? $img_height : $opt_height;
@@ -204,14 +173,13 @@ class DrawioEditor {
 			return $this->errorMessage( 'Invalid base url' );
 		}
 
-		// Edit link
-		$editLabel = Message::newFromKey( 'edit' )->text();
+		/* prepare edit href */
+		$editLabel = wfMessage( 'edit' )->text();
 		$attribs = [
 			'class' => 'drawioeditor-edit',
 			'title' => $editLabel,
 			'data-target-id' => $id,
 			'data-img-name' => $img_name,
-			'data-edit-mode' => $edit_mode,
 			'data-type' => $opt_type,
 			'data-height' => $opt_height === 'chart' ? 'true' : 'false',
 			'data-width' => $opt_width === 'chart' ? 'true' : 'false',
@@ -220,84 +188,49 @@ class DrawioEditor {
 			'data-latest-is-approved' => $latest_is_approved ? 'true' : 'false',
 			'data-img-url' => $img ? $img->getUrl() : ""
 		];
-		$editLink = Html::element( 'a', $attribs, $editLabel );
-
-		// Details link
-		$detailsLabel = Message::newFromKey( 'drawioeditor-details' )->text();
-		$detailsLink = Html::element( 'a', [ 'href' => $img_desc_url ], $detailsLabel );
+		$edit_ahref = \Html::element( 'a', $attribs, $editLabel );
 
 		/* output begin */
-		$output = Html::openElement( 'div' );
-
+		$output = '<div>';
 		$user = RequestContext::getMain()->getUser();
 		$permisionManager = $this->services->getPermissionManager();
 		$userHasRight = $permisionManager->userHasRight( $user, 'approverevisions' );
-
 		if ( $noApproved ) {
-			$output .= Html::element( 'p',
-				[ 'class' => 'successbox' ],
-				Message::newFromKey( 'drawioeditor-noapproved', $name )->text()
-			);
-
+			$output .= '<p class="successbox">' .
+			wfMessage( "drawioeditor-noapproved", $name )->text();
 			if ( $userHasRight ) {
-				$output .= ' ' . Html::element( 'a',
-					[ 'href' => $img_desc_url ],
-					Message::newFromKey( 'drawioeditor-approve-link' )->text()
-				);
+				$output .= ' <a href="' . $img_desc_url . '">'
+				. wfMessage( "drawioeditor-approve-link" ) . '</a>';
 			}
-
 			global $egApprovedRevsBlankFileIfUnapproved;
 			if ( $egApprovedRevsBlankFileIfUnapproved ) {
 				$img = null;
-				$editLink = '';
+				$edit_ahref = '';
 			}
 		} else {
 			if ( $img ) {
 				if ( !$latest_is_approved ) {
-					$output .= Html::element( 'p', [
-						'class' => 'successbox',
-						'id' => 'approved-displaywarning'
-					], Message::newFromKey( 'drawioeditor-approved-displaywarning' )->text()
-					);
+					$output .= '<p class="successbox" id="approved-displaywarning">' .
+					wfMessage( "drawioeditor-approved-displaywarning" )->text();
 				}
 				if ( $userHasRight ) {
-					$output .= ' ' . Html::element( 'a',
-						[ 'href' => $img_desc_url ],
-						Message::newFromKey( 'drawioeditor-changeapprove-link' )->text()
-					);
+					$output .= ' <a href="' . $img_desc_url . '">'
+					. wfMessage( "drawioeditor-changeapprove-link" ) . '</a>';
 				}
 			}
 		}
-
-		// Build links section
-		$links = [];
-		if ( $editLink ) {
-			$links[] = $editLink;
-		}
-		$links[] = $detailsLink;
-		$linksSection = implode( ' | ', $links );
-
 		/* div around the image */
-		$output .= Html::openElement( 'div', [ 'id' => "drawio-img-box-$id" ] );
+		$output .= '<div id="drawio-img-box-' . $id . '">';
 
 		/* display edit link */
 		if ( !$this->isReadOnly( $img, $parser ) ) {
-			$output .= Html::openElement( 'div', [
-				'class' => 'mw-editdrawio-wrapper',
-				'align' => 'right'
-			] );
-			$output .= Html::openElement( 'span', [ 'class' => 'mw-editdrawio' ] );
-			$output .= Html::element( 'span',
-				[ 'class' => 'mw-editsection-bracket' ],
-				'['
-			);
-			$output .= $linksSection;
-			$output .= Html::element( 'span',
-				[ 'class' => 'mw-editsection-bracket' ],
-				']'
-			);
-			$output .= Html::closeElement( 'span' );
-			$output .= Html::closeElement( 'div' );
+			$output .= '<div class="mw-editdrawio-wrapper" align="right">';
+			$output .= '<span class="mw-editdrawio">';
+			$output .= '<span class="mw-editsection-bracket">[</span>';
+			$output .= $edit_ahref;
+			$output .= '<span class="mw-editsection-bracket">]</span>';
+			$output .= '</span>';
+			$output .= '</div>';
 		}
 
 		/* prepare image */
@@ -307,79 +240,52 @@ class DrawioEditor {
 			$img_style .= ' display:none;';
 		}
 
-		$imgAttribs = [
-			'id' => "drawio-img-$id",
-			'title' => "drawio: $dispname",
-			'style' => $img_style
-		];
-
-		if ( $opt_type === 'svg' ) {
-			$imgAttribs['data'] = $img_url_ts;
-			$imgAttribs['type'] = 'image/svg+xml';
-			$imgAttribs['aria-label'] = $alt;
-		} elseif ( $opt_type === 'png' ) {
-			$imgAttribs['src'] = $img_url_ts;
-			$imgAttribs['alt'] = $alt;
-		}
-
-		if ( $img && $opt_type === 'png' ) {
+		if ( !$img ) {
+			$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s"></img>';
+			$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
+			$img_html .= sprintf(
+				$img_fmt, $id, $img_url_ts,
+				'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style
+			);
+			$img_html .= '</a>';
+		} else {
 			$mxDocumentExtractor = $this->getMXDocumentExtractor( $opt_type, $img->getRepo() );
 			$mxDocument = $mxDocumentExtractor->extractMXDocument( $img );
 			$imageMapGenerator = new ImageMapGenerator();
-			$imageMapName = "drawio-map-$id";
+			$imageMapName = 'drawio-map-' . $id;
 			$imageMap = $imageMapGenerator->generateImageMap( $mxDocument, $imageMapName );
-
-			// Add usemap if an image map is generated
-			$imgAttribs['usemap'] = "#$imageMapName";
-		}
-
-		/* Generate image HTML */
-		if ( $opt_type === 'svg' ) {
-			$img_html = Html::element( 'object', $imgAttribs );
-		} elseif ( $opt_type === 'png' ) {
-			$img_html = Html::openElement( 'a', [
-				'id' => "drawio-img-href-$id",
-				'href' => $img_desc_url
-			] );
-			$img_html .= Html::element( 'img', $imgAttribs );
-			if ( isset( $imageMap ) ) {
-				$img_html .= $imageMap;
-			}
-			$img_html .= Html::closeElement( 'a' );
+			$img_fmt = '<img id="drawio-img-%s" src="%s" title="%s" alt="%s" style="%s" usemap="#%s"></img>';
+			$img_html = '<a id="drawio-img-href-' . $id . '" href="' . $img_desc_url . '">';
+			$img_html .= sprintf(
+				$img_fmt, $id, $img_url_ts,
+				'drawio: ' . $dispname, 'drawio: ' . $dispname, $img_style,
+				$imageMapName
+			);
+			$img_html .= $imageMap;
+			$img_html .= '</a>';
 		}
 
 		/* output image and optionally a placeholder if the image does not exist yet */
 		if ( !$img && !$noApproved ) {
 			// show placeholder
-			$output .= Html::rawElement( 'div', [
-				'id' => "drawio-placeholder-$id",
-				'class' => 'DrawioEditorInfoBox'
-			], Html::element( 'b', [], $dispname ) );
+			$output .= sprintf( '<div id="drawio-placeholder-%s" class="DrawioEditorInfoBox">' .
+				'<b>%s</b></div> ',
+				$id, $dispname );
 		} else {
 			// the image or object element must be there in any case
 			// (it's hidden as long as there is no content.)
-			$output .= Html::rawElement( 'div',
-				[ 'class' => "drawio-img-container drawio-align-$alignment" ],
-				$img_html
-			);
+			$output .= $img_html;
 		}
-
-		$output .= Html::closeElement( 'div' );
+		$output .= '</div>';
 
 		/* editor and overlay divs, iframe is added by javascript on demand */
-		$output .= Html::openElement( 'div', [
-			'id' => "drawio-iframe-box-$id",
-			'style' => 'display:none;'
-		] );
-		$output .= Html::element( 'div', [
-			'id' => "drawio-iframe-overlay-$id",
-			'class' => 'DrawioEditorOverlay',
-			'style' => 'display:none;'
-		] );
-		$output .= Html::closeElement( 'div' );
+		$output .= '<div id="drawio-iframe-box-' . $id . '" style="display:none;">';
+		$output .= '<div id="drawio-iframe-overlay-' . $id
+			. '" class="DrawioEditorOverlay" style="display:none;"></div>';
+		$output .= '</div>';
 
 		/* output end */
-		$output .= Html::closeElement( 'div' );
+		$output .= '</div>';
 
 		/*
 		 * link the image to the ParserOutput, so that the mediawiki knows that
@@ -424,15 +330,10 @@ class DrawioEditor {
 	 * @return array
 	 */
 	private function errorMessage( $msg ) {
-		$output = Html::openElement( 'div', [
-			'class' => 'DrawioEditorInfoBox',
-			'style' => 'border-color:red;'
-		] );
-		$output .= Html::rawElement( 'p',
-			[ 'style' => 'color: red;' ],
-			'DrawioEditor Usage Error:<br/>' . htmlspecialchars( $msg )
-		);
-		$output .= Html::closeElement( 'div' );
+		$output = '<div class="DrawioEditorInfoBox" style="border-color:red;">';
+		$output .= '<p style="color: red;">DrawioEditor Usage Error:<br/>'
+			. htmlspecialchars( $msg ) . '</p>';
+		$output .= '</div>';
 
 		return [ $output, 'isHTML' => true, 'noparse' => true ];
 	}

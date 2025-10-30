@@ -4,9 +4,6 @@
 			"Beta16"
 		]
 	},
-	"drawioeditor-ve-drawio-tag-name": "Nome",
-	"drawioeditor-droplet-name": "Diagramma",
-	"drawioeditor-ve-drawio-alt-label": "Descrizione immagine",
-	"drawioeditor-ve-drawio-alignment-help": "Allineamento orizzontale dell'immagine sulla pagina",
-	"drawioeditor-details": "Dettagli"
+	"drawioconnector-ve-drawio-tag-name": "Nome",
+	"drawio-droplet-name": "Diagramma"
 }

@@ -2,11 +2,10 @@
 	"@metadata": {
 		"authors": [
 			"Nike",
-			"Pyscowicz",
-			"Samoasambia"
+			"Pyscowicz"
 		]
 	},
-	"drawioeditor-usage": "Käytetty draw.io-elementin kanssa",
-	"drawioeditor-ve-drawio-title": "draw.io-kaavio",
-	"drawioeditor-ve-drawio-tag-name": "Nimi"
+	"drawio-usage": "Käytetty Drawio-elementin kanssa",
+	"drawioconnector-ve-drawio-title": "draw.io-kaavio",
+	"drawioconnector-ve-drawio-tag-name": "Nimi"
 }

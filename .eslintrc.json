@@ -1,26 +1,7 @@
 {
 	"root": true,
 	"extends": [
-		"wikimedia/client",
-		"wikimedia/jquery",
+		"wikimedia/client-es5",
 		"wikimedia/mediawiki"
-	],
-	"parserOptions": {
-		"sourceType": "commonjs",
-		"ecmaVersion": 2020
-	},
-	"globals": {
-		"drawioeditor": "readonly",
-		"ve": "readonly"
-	},
-	"rules": {
-		"es-x/no-array-prototype-includes": "off",
-		"es-x/no-async-functions": "off",
-		"es-x/no-optional-chaining": "off",
-		"max-len": "off",
-		"no-alert": "off",
-		"no-implicit-globals": "off",
-		"no-jquery/no-global-selector": "off",
-		"no-jquery/variable-pattern": "off"
-	}
+	]
 }

@@ -13,14 +13,14 @@ class DrawioDroplet extends TagDroplet {
 	 * @inheritDoc
 	 */
 	public function getName(): Message {
-		return Message::newFromKey( 'drawioeditor-droplet-name' );
+		return Message::newFromKey( 'drawio-droplet-name' );
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getDescription(): Message {
-		return Message::newFromKey( 'drawioeditor-droplet-description' );
+		return Message::newFromKey( 'drawio-droplet-description' );
 	}
 
 	/**
@@ -55,12 +55,14 @@ class DrawioDroplet extends TagDroplet {
 	 * @return array
 	 */
 	protected function getAttributes(): array {
-		return [
-			'filename' => "",
-			'editmode' => "",
-			'alt' => "",
-			'alignment' => "",
-		];
+		return [ 'filename' ];
+	}
+
+	/**
+	 * @return bool
+	 */
+	protected function hasContent(): bool {
+		return false;
 	}
 
 	/**
@@ -68,9 +70,5 @@ class DrawioDroplet extends TagDroplet {
 	 */
 	public function getVeCommand(): ?string {
 		return 'drawioCommand';
-	}
-
-	protected function hasContent(): bool {
-		return false;
 	}
 }

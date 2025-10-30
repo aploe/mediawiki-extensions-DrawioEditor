@@ -3,7 +3,7 @@
 namespace MediaWiki\Extension\DrawioEditor\Hook;
 
 use File;
-use MediaWiki\User\User;
+use User;
 
 interface DrawioGetFileHook {
 
