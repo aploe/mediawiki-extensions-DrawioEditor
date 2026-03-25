@@ -93,56 +93,32 @@ class Hooks {
 
 		$services = MediaWikiServices::getInstance();
 		$dbr = $services->getDBLoadBalancer()->getConnection( DB_REPLICA );
-		$oRes = $dbr->select(
-				[ 'page', 'revision', 'slots', 'text' ],
-				[ 'page_namespace', 'rev_id', 'page_title' ],
-				'(' . implode( ' OR ', $aConds ) .
-				') AND page_id = rev_page AND rev_id = slot_revision_id AND old_id = slot_content_id',
-				__METHOD__
-		);
+		$linkRenderer = $services->getLinkRenderer();
 
 		$aLinks = [];
-		$revisionLookup = $services->getRevisionLookup();
-		$linkRenderer = $services->getLinkRenderer();
-		foreach ( $oRes as $oRow ) {
-			$oRevision = $revisionLookup->getRevisionById( $oRow->rev_id );
-			if ( $oRevision->isCurrent() ) {
-				$title = Title::makeTitle( $oRow->page_namespace, $oRow->page_title );
-				$sLink = $linkRenderer->makeLink( $title );
-				$oLi = Html::rawElement( 'li', [], $sLink ) . "\n";
-				$aLinks[$title->getPrefixedDBkey()] = $oLi;
-			}
-		}
-
 		$pagePropsRes = $dbr->select(
 			'page_props',
 			'pp_page',
 			[
 				'pp_propname' => 'drawio-image',
-				'pp_value' => $sFileName
+				'pp_value' => $fileName
 			],
 			__METHOD__
 		);
 		foreach ( $pagePropsRes as $row ) {
 			$title = Title::newFromID( $row->pp_page );
 			$link = $linkRenderer->makeLink( $title );
-			$liEl = Html::rawElement( 'li', [], $link );
-			$aLinks[$title->getPrefixedDBkey()] = $liEl;
+			$aLinks[$title->getPrefixedDBkey()] = Html::rawElement( 'li', [], $link );
 		}
 		ksort( $aLinks );
 
-		$sHtml .= Html::rawElement( 'h2', [], wfMessage( 'drawio-usage' )->plain() );
-		$sHtml .= Html::openElement( 'ul' ) . "\n";
-		if ( empty( $aLinks ) ) {
-			$sHtml .= Html::rawElement( 'p', [], wfMessage( 'drawio-not-used' )->plain() );
-		} else {
-			$sHtml .= implode( "\n", $aLinks );
-		}
-		$sHtml .= Html::closeElement( 'ul' );
-
 		$html .= Html::rawElement( 'h2', [], wfMessage( 'drawioeditor-usage' )->escaped() );
 		$html .= Html::openElement( 'ul' ) . "\n";
-		$html .= implode( "\n", $links );
+		if ( empty( $aLinks ) ) {
+			$html .= Html::rawElement( 'p', [], wfMessage( 'drawio-not-used' )->plain() );
+		} else {
+			$html .= implode( "\n", $aLinks );
+		}
 		$html .= Html::closeElement( 'ul' );
 	}
 }
