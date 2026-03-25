@@ -66,12 +66,13 @@ function DrawioEditor( id, filename, type, updateHeight, updateWidth,
 	// const customShapeLibraries = require( './customShapeLibraries.json' );
 	// const clibsParam = `&clibs=${ customShapeLibraries.customShapeLibraries }`;
 	// const iframeUrl = `${ this.baseUrl }/?${ params.toString() }${ clibsParam }`;
-	const iframeUrl = `${ this.baseUrl }/?${ params.toString() }`;
+	var iframeUrl = this.baseUrl + '/?' + params.toString();
 
 	this.iframe = $('<iframe>', {
 		// Add https to base url (aploe)
-		src: this.baseUrl + '/?https=' + iframeviahttps + '&embed=1&proto=json&spin=1&analytics=0&picker=0&lang=' + this.language,
+		// src: this.baseUrl + '/?https=' + iframeviahttps + '&embed=1&proto=json&spin=1&analytics=0&picker=0&lang=' + this.language,
 		// src: this.baseUrl + '/?embed=1&proto=json&spin=1&analytics=0&picker=0&lang=' + this.language,
+		src: iframeUrl,
 		id: 'drawio-iframe-' + id,
 		class: 'DrawioEditorIframe'
 	});
@@ -235,7 +236,7 @@ DrawioEditor.prototype.uploadToWiki = async function ( blob ) {
 		} );
 
 		if ( !response.ok ) {
-			throw new Error( `HTTP ${ response.status } - ${ response.statusText }` );
+			throw new Error( 'HTTP ' + response.status + ' - ' + response.statusText );
 		}
 
 		const data = await response.json();
@@ -253,7 +254,7 @@ DrawioEditor.prototype.uploadToWiki = async function ( blob ) {
 			// Known API error
 			this.showDialog(
 				'Save failed',
-				`Upload error: ${ data.error.info }`
+				'Upload error: ' + data.error.info
 			);
 		} else {
 			// Unexpected or malformed API response
@@ -268,7 +269,7 @@ DrawioEditor.prototype.uploadToWiki = async function ( blob ) {
 		this.hideSpinner();
 		this.showDialog(
 			'Save failed',
-			`Upload failed: ${ error.message }. See console for details.`
+			'Upload failed: ' + error.message + '. See console for details.'
 		);
 		console.error( '[DrawioEditor] Upload error:', error ); // eslint-disable-line no-console
 	}
@@ -447,7 +448,7 @@ async function configureCallback( e ) {
 		);
 
 		if ( !response.ok ) {
-			throw new Error( `HTTP error ${ response.status }` );
+			throw new Error( 'HTTP error ' + response.status );
 		}
 
 		let config = {
