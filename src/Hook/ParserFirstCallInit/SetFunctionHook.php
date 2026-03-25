@@ -4,7 +4,7 @@ namespace MediaWiki\Extension\DrawioEditor\Hook\ParserFirstCallInit;
 
 use Exception;
 use MediaWiki\Extension\DrawioEditor\DrawioEditor;
-use MediaWiki\Parser\Parser;
+use Parser;
 
 class SetFunctionHook {
 

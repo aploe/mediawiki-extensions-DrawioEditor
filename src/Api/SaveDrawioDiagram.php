@@ -2,20 +2,20 @@
 
 namespace MediaWiki\Extension\DrawioEditor\Api;
 
+use ApiBase;
+use ApiMain;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use File;
-use MediaWiki\Api\ApiBase;
-use MediaWiki\Api\ApiMain;
-use MediaWiki\Message\Message;
-use MediaWiki\Specials\SpecialUpload;
-use MediaWiki\Title\Title;
+use Message;
 use MWFileProps;
 use PNGMetadataExtractor;
 use RepoGroup;
 use RuntimeException;
+use SpecialUpload;
 use SVGReader;
+use Title;
 use Wikimedia\Mime\MimeAnalyzer;
 use Wikimedia\ParamValidator\ParamValidator;
 use Wikimedia\ParamValidator\Util\UploadedFile;

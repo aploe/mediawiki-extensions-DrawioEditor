@@ -5,14 +5,15 @@ namespace MediaWiki\Extension\DrawioEditor;
 use Config;
 use File;
 use FileRepo;
+use Html;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\NullExtractor;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\PNG;
 use MediaWiki\Extension\DrawioEditor\MXDocumentExtractor\SVG;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Message\Message;
-use MediaWiki\Parser\Parser;
-use MediaWiki\Parser\PPFrame;
-use MediaWiki\Title\Title;
+use Parser;
+use PPFrame;
+use RequestContext;
+use Title;
 
 class DrawioEditor {
 
@@ -196,7 +197,7 @@ class DrawioEditor {
 		}
 
 		// Edit link
-		$editLabel = Message::newFromKey( 'edit' )->text();
+		$editLabel = wfMessage( 'edit' )->text();
 		$attribs = [
 			'class' => 'drawioeditor-edit',
 			'title' => $editLabel,
@@ -213,7 +214,7 @@ class DrawioEditor {
 		$editLink = Html::element( 'a', $attribs, $editLabel );
 
 		// Details link
-		$detailsLabel = Message::newFromKey( 'drawioeditor-details' )->text();
+		$detailsLabel = wfMessage( 'drawioeditor-details' )->text();
 		$detailsLink = Html::element( 'a', [ 'href' => $img_desc_url ], $detailsLabel );
 
 		/* output begin */
@@ -224,13 +225,13 @@ class DrawioEditor {
 		if ( $noApproved ) {
 			$output .= Html::element( 'p',
 				[ 'class' => 'successbox' ],
-				Message::newFromKey( 'drawioeditor-noapproved', $name )->text()
+				wfMessage( 'drawioeditor-noapproved', $name )->text()
 			);
 
 			if ( $userHasRight ) {
 				$output .= ' ' . Html::element( 'a',
 					[ 'href' => $img_desc_url ],
-					Message::newFromKey( 'drawioeditor-approve-link' )->text()
+					wfMessage( 'drawioeditor-approve-link' )->text()
 				);
 			}
 			global $egApprovedRevsBlankFileIfUnapproved;
@@ -244,13 +245,13 @@ class DrawioEditor {
 					$output .= Html::element( 'p', [
 						'class' => 'successbox',
 						'id' => 'approved-displaywarning'
-					], Message::newFromKey( 'drawioeditor-approved-displaywarning' )->text()
+					], wfMessage( 'drawioeditor-approved-displaywarning' )->text()
 					);
 				}
 				if ( $userHasRight ) {
 					$output .= ' ' . Html::element( 'a',
 						[ 'href' => $img_desc_url ],
-						Message::newFromKey( 'drawioeditor-changeapprove-link' )->text()
+						wfMessage( 'drawioeditor-changeapprove-link' )->text()
 					);
 				}
 			}
