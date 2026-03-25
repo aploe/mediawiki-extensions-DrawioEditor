@@ -80,7 +80,7 @@ class Hooks {
 	// 	];
 
 
-	public function onImagePageAfterImageLinks( $imagePage, &$html ) {
+	public static function onImagePageAfterImageLinks( $imagePage, &$html ) {
 		$fileName = $imagePage->getFile()->getTitle()->getDBkey();
 
 		if ( str_ends_with( $fileName, '.svg' ) ) {
