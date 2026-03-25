@@ -15,7 +15,6 @@ use RuntimeException;
 use SpecialUpload;
 use SVGReader;
 use Title;
-use Wikimedia\Mime\MimeAnalyzer;
 use Wikimedia\ParamValidator\ParamValidator;
 use Wikimedia\ParamValidator\Util\UploadedFile;
 use Wikimedia\ParamValidator\Util\UploadedFileStream;
@@ -28,16 +27,16 @@ class SaveDrawioDiagram extends ApiBase {
 	/** @var RepoGroup */
 	protected $repoGroup;
 
-	/** @var MimeAnalyzer */
+	/** @var object */
 	protected $mimeAnalyzer;
 
 	/**
 	 * @param ApiMain $main
 	 * @param string $action
 	 * @param RepoGroup $repoGroup
-	 * @param MimeAnalyzer $mimeAnalyzer
+	 * @param object $mimeAnalyzer
 	 */
-	public function __construct( ApiMain $main, string $action, RepoGroup $repoGroup, MimeAnalyzer $mimeAnalyzer ) {
+	public function __construct( ApiMain $main, string $action, RepoGroup $repoGroup, $mimeAnalyzer ) {
 		parent::__construct( $main, $action );
 		$this->repoGroup = $repoGroup;
 		$this->mimeAnalyzer = $mimeAnalyzer;
