@@ -220,59 +220,41 @@ DrawioEditor.prototype.loadImage = function() {
  *
  * @param {Blob} blob - The diagram file blob to upload.
  */
-DrawioEditor.prototype.uploadToWiki = async function ( blob ) {
-	const formData = new FormData();
+DrawioEditor.prototype.uploadToWiki = function ( blob ) {
+	var that = this;
+	var formData = new FormData();
 	formData.append( 'action', 'drawioeditor-save-diagram' );
 	formData.append( 'token', mw.user.tokens.get( 'csrfToken' ) );
 	formData.append( 'format', 'json' );
 	formData.append( 'file', blob, this.filename );
 
-	try {
-		// Perform the upload request
-		const response = await fetch( mw.util.wikiScript( 'api' ), {
-			method: 'POST',
-			body: formData,
-			credentials: 'same-origin'
-		} );
-
+	fetch( mw.util.wikiScript( 'api' ), {
+		method: 'POST',
+		body: formData,
+		credentials: 'same-origin'
+	} ).then( function ( response ) {
 		if ( !response.ok ) {
 			throw new Error( 'HTTP ' + response.status + ' - ' + response.statusText );
 		}
-
-		const data = await response.json();
-
+		return response.json();
+	} ).then( function ( data ) {
 		if ( data.upload ) {
-			// Upload succeeded, update image
-			this.updateImage( data.upload.imageinfo );
-			this.hideSpinner();
+			that.updateImage( data.upload.imageinfo );
+			that.hideSpinner();
 			return;
 		}
-
-		this.hideSpinner();
-
+		that.hideSpinner();
 		if ( data.error ) {
-			// Known API error
-			this.showDialog(
-				'Save failed',
-				'Upload error: ' + data.error.info
-			);
+			that.showDialog( 'Save failed', 'Upload error: ' + data.error.info );
 		} else {
-			// Unexpected or malformed API response
-			this.showDialog(
-				'Save failed',
-				'Unexpected response. See console for details.'
-			);
+			that.showDialog( 'Save failed', 'Unexpected response. See console for details.' );
 			console.error( '[DrawioEditor] Unexpected upload response:', data ); // eslint-disable-line no-console
 		}
-	} catch ( error ) {
-		// Network or fatal error
-		this.hideSpinner();
-		this.showDialog(
-			'Save failed',
-			'Upload failed: ' + error.message + '. See console for details.'
-		);
+	} ).catch( function ( error ) {
+		that.hideSpinner();
+		that.showDialog( 'Save failed', 'Upload failed: ' + error.message + '. See console for details.' );
 		console.error( '[DrawioEditor] Upload error:', error ); // eslint-disable-line no-console
-	}
+	} );
 };
 
 DrawioEditor.prototype.save = function(datauri) {
@@ -390,7 +372,7 @@ window.editDrawio = function(id, filename, type, updateHeight, updateWidth, upda
 	}
 };
 
-async function drawioHandleMessage( e ) {
+function drawioHandleMessage( e ) {
 	// we only act on event coming from "baseUrl" iframes
 	if ( !window.drawioEditorBaseUrl || !window.drawioEditorBaseUrl.startsWith( e.origin ) ) {
 		return;
@@ -404,7 +386,7 @@ async function drawioHandleMessage( e ) {
 
 	switch ( evdata.event ) {
 		case 'configure':
-			await configureCallback( e );
+			configureCallback( e );
 			break;
 
 		case 'init':
@@ -424,42 +406,33 @@ async function drawioHandleMessage( e ) {
 
 		case 'exit':
 			editor.exitCallback();
-		// editor is null after this callback
-			break;
-
-		// Add configure event (aploe)
-		case 'configure':
-			editor.sendConfig();
+			// editor is null after this callback
 			break;
 
 		default:
 			alert('Received unknown event from drawio iframe: ' + evdata['event']);
 	}
-};
+}
 
-async function configureCallback( e ) {
-	try {
-		const response = await fetch(
-			mw.util.wikiScript() + '?' + new URLSearchParams( {
-				action: 'raw',
-				title: 'MediaWiki:DrawioEditorConfig.json',
-				ctype: 'application/json'
-			} )
-		);
+function configureCallback( e ) {
+	var url = mw.util.wikiScript() + '?' + new URLSearchParams( {
+		action: 'raw',
+		title: 'MediaWiki:DrawioEditorConfig.json',
+		ctype: 'application/json'
+	} );
+	var fetchedContentType;
 
+	fetch( url ).then( function ( response ) {
 		if ( !response.ok ) {
 			throw new Error( 'HTTP error ' + response.status );
 		}
-
-		let config = {
-			defaultAdaptiveColors: 'none'
-		};
-		const contentType = response.headers.get( 'Content-Type' );
-		const text = await response.text();
-
+		fetchedContentType = response.headers.get( 'Content-Type' );
+		return response.text();
+	} ).then( function ( text ) {
+		var config = { defaultAdaptiveColors: 'none' };
 		if ( !text.trim() ) {
 			console.warn( '[DrawioEditor] Config page is empty. Using default config.' ); // eslint-disable-line no-console
-		} else if ( ( contentType && contentType.includes( 'application/json' ) ) || text.trim().startsWith( '{' ) ) {
+		} else if ( ( fetchedContentType && fetchedContentType.includes( 'application/json' ) ) || text.trim().startsWith( '{' ) ) {
 			try {
 				config = JSON.parse( text );
 			} catch ( parseErr ) {
@@ -468,14 +441,13 @@ async function configureCallback( e ) {
 		} else {
 			console.warn( '[DrawioEditor] Config content not JSON-like. Using default config.' ); // eslint-disable-line no-console
 		}
-
 		e.source.postMessage( JSON.stringify( {
 			action: 'configure',
-			config
+			config: config
 		} ), e.origin );
-	} catch ( err ) {
+	} ).catch( function ( err ) {
 		console.error( '[DrawioEditor] Configure load failed:', err ); // eslint-disable-line no-console
-	}
+	} );
 }
 
 window.addEventListener( 'message', drawioHandleMessage );
