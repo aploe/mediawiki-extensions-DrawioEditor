@@ -391,7 +391,7 @@ window.editDrawio = function(id, filename, type, updateHeight, updateWidth, upda
 
 async function drawioHandleMessage( e ) {
 	// we only act on event coming from "baseUrl" iframes
-	if ( !window?.drawioEditorBaseUrl?.startsWith( e.origin ) ) {
+	if ( !window.drawioEditorBaseUrl || !window.drawioEditorBaseUrl.startsWith( e.origin ) ) {
 		return;
 	}
 
@@ -458,7 +458,7 @@ async function configureCallback( e ) {
 
 		if ( !text.trim() ) {
 			console.warn( '[DrawioEditor] Config page is empty. Using default config.' ); // eslint-disable-line no-console
-		} else if ( contentType?.includes( 'application/json' ) || text.trim().startsWith( '{' ) ) {
+		} else if ( ( contentType && contentType.includes( 'application/json' ) ) || text.trim().startsWith( '{' ) ) {
 			try {
 				config = JSON.parse( text );
 			} catch ( parseErr ) {
