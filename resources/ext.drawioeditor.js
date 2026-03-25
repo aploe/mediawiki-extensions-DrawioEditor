@@ -47,11 +47,6 @@ function DrawioEditor( id, filename, type, updateHeight, updateWidth,
 	this.iframeOverlay = $("#drawio-iframe-overlay-" + id);
 	this.iframeOverlay.hide();
 
-	// Determine if page is secured over https (aploe)
-	var iframeviahttps = 0;
-	if (location.protocol === 'https:') iframeviahttps = 1;
-	const customShapeLibraries = require( './customShapeLibraries.json' );
-
 	const params = new URLSearchParams( {
 		embed: '1',
 		proto: 'json',
@@ -59,15 +54,19 @@ function DrawioEditor( id, filename, type, updateHeight, updateWidth,
 		analytics: '0',
 		picker: '0',
 		lang: this.language,
+		stealth: '1',
 		ui: 'min',
 		libraries: '1',
 		configure: '1',
 		splash: '0'
 	} );
 
+	// ERM43219 Deactivate clibs
 	// Append clibs manually so semicolons remain unencoded
-	const clibsParam = `&clibs=${ customShapeLibraries.customShapeLibraries }`;
-	const iframeUrl = `${ this.baseUrl }/?${ params.toString() }${ clibsParam }`;
+	// const customShapeLibraries = require( './customShapeLibraries.json' );
+	// const clibsParam = `&clibs=${ customShapeLibraries.customShapeLibraries }`;
+	// const iframeUrl = `${ this.baseUrl }/?${ params.toString() }${ clibsParam }`;
+	const iframeUrl = `${ this.baseUrl }/?${ params.toString() }`;
 
 	this.iframe = $('<iframe>', {
 		// Add https to base url (aploe)
@@ -156,27 +155,29 @@ DrawioEditor.prototype.showSpinner = function() {
 DrawioEditor.prototype.hideSpinner = function() {
 	this.iframeBox.resizable("enable");
 	this.hideOverlay();
-	this.sendMsgToIframe({
-		'action': 'spinner',
-		'show': false
-	});
-}
+	this.sendMsgToIframe( {
+		action: 'spinner',
+		show: false
+	} );
+};
 
-DrawioEditor.prototype.downloadFromWiki = function() {
-	var that = this;
-	var xhr = new XMLHttpRequest();
-	xhr.onreadystatechange = function() {
-		if (this.readyState == 4) {
-		if (this.status == 200) {
-				var res = this.response;
-				var fr = new FileReader();
-				fr.onload = function(ev) { that.loadImageFromDataURL(res.type, ev.target.result); };
-				fr.readAsDataURL(res);
-		} else {
-			that.showDialog('Load failed',
-				'HTTP request to fetch image failed: ' + this.status +
-			'<br>Image: ' + that.imageURL);
-		}
+DrawioEditor.prototype.downloadFromWiki = function () {
+	const that = this;
+	const xhr = new XMLHttpRequest();
+	xhr.onreadystatechange = function () {
+		if ( this.readyState == 4 ) { // eslint-disable-line eqeqeq
+			if ( this.status == 200 ) { // eslint-disable-line eqeqeq
+				const res = this.response;
+				const fr = new FileReader();
+				fr.onload = function ( ev ) {
+					that.loadImageFromDataURL( res.type, ev.target.result );
+				};
+				fr.readAsDataURL( res );
+			} else {
+				that.showDialog( 'Load failed',
+					'HTTP request to fetch image failed: ' + this.status +
+			'<br>Image: ' + that.imageURL );
+			}
 		}
 	}
 	xhr.onload = function() {
@@ -392,8 +393,9 @@ async function drawioHandleMessage( e ) {
 	// we only act on event coming from "baseUrl" iframes
 	if ( !window?.drawioEditorBaseUrl?.startsWith( e.origin ) ) {
 		return;
+	}
 
-	if (!editor)
+	if ( !editor ) {
 		return;
 
 	evdata = JSON.parse(e.data);
