@@ -397,6 +397,7 @@ async function drawioHandleMessage( e ) {
 
 	if ( !editor ) {
 		return;
+	}
 
 	evdata = JSON.parse(e.data);
 
