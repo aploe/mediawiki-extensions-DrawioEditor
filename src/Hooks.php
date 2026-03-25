@@ -39,24 +39,24 @@ class Hooks {
 		return true;
 	}
 
-	// /**
-	//  * Embeds CSS into pdf export
-	//  *
-	//  * @param array &$aTemplate
-	//  * @param array &$aStyleBlocks
-	//  * @return bool Always true to keep hook running
-	//  */
-	// public static function onBSUEModulePDFBeforeAddingStyleBlocks( &$aTemplate, &$aStyleBlocks ) {
-	// 	$css = [
-	// 		".bs-page-content .mw-editdrawio { display: none; } ",
-	// 		'[id^="drawio-img-"] { padding-top: 10px; }',
-	// 		'img[id^="drawio-img-"] { height: auto; }'
-	// 	];
+	/**
+	 * Embeds CSS into pdf export
+	 *
+	 * @param array &$aTemplate
+	 * @param array &$aStyleBlocks
+	 * @return bool Always true to keep hook running
+	 */
+	public static function onBSUEModulePDFBeforeAddingStyleBlocks( &$aTemplate, &$aStyleBlocks ) {
+		$css = [
+			".bs-page-content .mw-editdrawio { display: none; } ",
+			'[id^="drawio-img-"] { padding-top: 10px; }',
+			'img[id^="drawio-img-"] { height: auto; }'
+		];
 
-	// 	$aStyleBlocks['Drawio'] = implode( ' ', $css );
+		$aStyleBlocks['Drawio'] = implode( ' ', $css );
 
-	// 	return true;
-	// }
+		return true;
+	}
 
 	// /**
 	//  *
