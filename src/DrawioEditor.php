@@ -100,6 +100,7 @@ class DrawioEditor {
 		$opt_width = $opts[ 'width' ] ?? '100%';
 		$opt_max_width = $opts[ 'max-width' ] ?? false;
 		$opt_alt = $opts[ 'alt' ] ?? false;
+		$alt = $opt_alt !== false ? $opt_alt : '';
 		$alignment = $opts[ 'alignment' ] ?? 'center';
 
 		/* process input */
@@ -321,8 +322,10 @@ class DrawioEditor {
 			$imageMapName = 'drawio-map-' . $id;
 			$imageMap = $imageMapGenerator->generateImageMap( $mxDocument, $imageMapName );
 
-			// Add usemap if an image map is generated
-			$imgAttribs['usemap'] = "#$imageMapName";
+			// Add usemap only if an image map with areas was actually generated
+			if ( $imageMap ) {
+				$imgAttribs['usemap'] = "#$imageMapName";
+			}
 		}
 
 		/* Generate image HTML */
@@ -334,7 +337,7 @@ class DrawioEditor {
 				'href' => $img_desc_url
 			] );
 			$img_html .= Html::element( 'img', $imgAttribs );
-			if ( isset( $imageMap ) ) {
+			if ( !empty( $imageMap ) ) {
 				$img_html .= $imageMap;
 			}
 			$img_html .= Html::closeElement( 'a' );
