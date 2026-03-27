@@ -138,6 +138,7 @@
 		"DrawioGetFile": "approveRevsSetStableFile",
 		"BSUEModulePDFFindFiles": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks::onBSUEModulePDFFindFiles",
 		"BSUEModulePDFBeforeAddingStyleBlocks": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks::onBSUEModulePDFBeforeAddingStyleBlocks",
+		"BSUEModulePDFAfterFindFiles": "DrawioEditorAfterFindFiles",
 		"ImagePageAfterImageLinks": "\\MediaWiki\\Extension\\DrawioEditor\\Hooks::onImagePageAfterImageLinks"
 	},
 	"HookHandlers": {
@@ -147,6 +148,9 @@
 		"approveRevsSetStableFile": {
 			"class": "MediaWiki\\Extension\\DrawioEditor\\Hook\\ApprovedRevsSetStableFile",
 			"services": [ "DBLoadBalancer", "RepoGroup" ]
+		},
+		"DrawioEditorAfterFindFiles": {
+			"class": "\\MediaWiki\\Extension\\DrawioEditor\\Hook\\BSUEModulePDFAfterFindFilesHandler"
 		}
 	},
 	"config": {
