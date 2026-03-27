@@ -28,8 +28,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 		$aParams,
 		$oDOMXPath
 	): bool {
-		error_log( '[DrawioEditor] onBSUEModulePDFAfterFindFiles: hook called' );
-
 		// Snapshot the live NodeList before any DOM mutations
 		$objectTags = $oHtml->getElementsByTagName( 'object' );
 		$toReplace = [];
@@ -41,8 +39,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 				$toReplace[] = $objectTag;
 			}
 		}
-
-		error_log( '[DrawioEditor] found ' . count( $toReplace ) . ' drawio object tag(s)' );
 
 		if ( empty( $toReplace ) ) {
 			return true;
@@ -60,15 +56,12 @@ class BSUEModulePDFAfterFindFilesHandler {
 			}
 
 			$fileName = wfBaseName( urldecode( $dataUrl ) );
-			error_log( '[DrawioEditor] processing "' . $fileName . '"' );
-
 			if ( !$fileName ) {
 				continue;
 			}
 
 			$file = $repoGroup->findFile( $fileName );
 			if ( !$file || !$file->exists() ) {
-				error_log( '[DrawioEditor] file not found in repo: ' . $fileName );
 				continue;
 			}
 
@@ -76,7 +69,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 			$backend  = $file->getRepo()->getBackend();
 			$localRef = $backend->getLocalReference( [ 'src' => $file->getPath() ] );
 			if ( !$localRef || !file_exists( $localRef->getPath() ) ) {
-				error_log( '[DrawioEditor] source file not accessible on disk' );
 				continue;
 			}
 			$srcPath = $localRef->getPath();
@@ -86,29 +78,25 @@ class BSUEModulePDFAfterFindFilesHandler {
 
 			// --- SVG: rasterise to PNG with rsvg-convert ---
 			if ( $file->isVectorized() ) {
-				$width = $file->getWidth() ?: 1372;
+				$width   = $file->getWidth() ?: 1372;
 				$pngName = preg_replace( '/\.svg$/i', '.png', $fileName );
 				$tmpPng  = sys_get_temp_dir() . '/drawio_pdf_' . md5( $fileName ) . '.png';
 
-				// Remove stale temp file if present
 				if ( file_exists( $tmpPng ) ) {
 					unlink( $tmpPng );
 				}
 
 				$rsvg = '/usr/bin/rsvg-convert';
 				if ( is_executable( $rsvg ) ) {
-					$cmd    = escapeshellcmd( $rsvg )
+					$cmd = escapeshellcmd( $rsvg )
 						. ' -w ' . (int)$width
 						. ' ' . escapeshellarg( $srcPath )
 						. ' -o ' . escapeshellarg( $tmpPng )
 						. ' 2>&1';
-					$output = shell_exec( $cmd );
+					shell_exec( $cmd );
 					if ( file_exists( $tmpPng ) && filesize( $tmpPng ) > 0 ) {
 						$finalPath = $tmpPng;
 						$finalName = $pngName;
-						error_log( '[DrawioEditor] rsvg-convert OK: ' . $tmpPng . ' (' . filesize( $tmpPng ) . ' bytes) as ' . $finalName );
-					} else {
-						error_log( '[DrawioEditor] rsvg-convert failed (output: ' . trim( $output ) . '), trying Imagick' );
 					}
 				}
 
@@ -125,10 +113,9 @@ class BSUEModulePDFAfterFindFilesHandler {
 							file_put_contents( $tmpPng, $pngData );
 							$finalPath = $tmpPng;
 							$finalName = $pngName;
-							error_log( '[DrawioEditor] Imagick OK: ' . strlen( $pngData ) . ' bytes as ' . $finalName );
 						}
 					} catch ( \Exception $e ) {
-						error_log( '[DrawioEditor] Imagick failed: ' . $e->getMessage() );
+						// fall through to original-file fallback
 					}
 				}
 			}
@@ -137,7 +124,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 			if ( !$finalPath ) {
 				$finalPath = $srcPath;
 				$finalName = $fileName;
-				error_log( '[DrawioEditor] using original file as fallback: ' . $srcPath );
 			}
 
 			// Build <img> to replace the <object>
@@ -161,7 +147,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 			}
 
 			$objectTag->parentNode->replaceChild( $img, $objectTag );
-			error_log( '[DrawioEditor] replaced <object> with <img src="images/' . $finalName . '">' );
 
 			$filesToUpload[$finalName] = $finalPath;
 
@@ -191,7 +176,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 		$documentToken = $aParams['document-token'] ?? null;
 
 		if ( !$soapUrl || !$documentToken ) {
-			error_log( '[DrawioEditor] missing soap-service-url or document-token, cannot upload' );
 			return;
 		}
 
@@ -205,7 +189,6 @@ class BSUEModulePDFAfterFindFilesHandler {
 		foreach ( $files as $fileName => $filePath ) {
 			$fileSize = file_exists( $filePath ) ? filesize( $filePath ) : -1;
 			if ( $fileSize <= 0 ) {
-				error_log( '[DrawioEditor] skipping empty/missing file: ' . $filePath );
 				continue;
 			}
 			$fieldname   = md5( $fileName );
@@ -215,12 +198,10 @@ class BSUEModulePDFAfterFindFilesHandler {
 				'filename' => $fileName,
 			];
 			$multipart[] = [ 'name' => $fieldname . '_name', 'contents' => $fileName ];
-			error_log( '[DrawioEditor] queued for upload: ' . $fileName . ' (' . $fileSize . ' bytes)' );
 			$hasFiles = true;
 		}
 
 		if ( !$hasFiles ) {
-			error_log( '[DrawioEditor] no files to upload' );
 			return;
 		}
 
@@ -232,12 +213,10 @@ class BSUEModulePDFAfterFindFilesHandler {
 				$requestOptions
 			);
 
-			$client       = new \GuzzleHttp\Client( $clientConfig );
-			$response     = $client->request( 'POST', $soapUrl . '/UploadAsset', [ 'multipart' => $multipart ] );
-			$responseBody = (string)$response->getBody();
-			error_log( '[DrawioEditor] upload status: ' . $response->getStatusCode() . ' body: ' . substr( $responseBody, 0, 300 ) );
+			$client = new \GuzzleHttp\Client( $clientConfig );
+			$client->request( 'POST', $soapUrl . '/UploadAsset', [ 'multipart' => $multipart ] );
 		} catch ( \Exception $e ) {
-			error_log( '[DrawioEditor] upload exception: ' . $e->getMessage() );
+			// Upload failure is non-fatal; the PDF will simply be missing the image
 		}
 	}
 }
