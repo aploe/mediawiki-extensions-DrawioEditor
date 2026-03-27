@@ -40,9 +40,13 @@ class BSUEModulePDFAfterFindFilesHandler {
 			}
 		}
 
+		error_log( '[DrawioEditor] PDF export triggered' );
+
 		if ( empty( $toReplace ) ) {
 			return true;
 		}
+
+		error_log( '[DrawioEditor] ' . count( $toReplace ) . ' SVG diagram(s) found in export' );
 
 		$repoGroup = MediaWikiServices::getInstance()->getRepoGroup();
 		$filesToUpload = [];
