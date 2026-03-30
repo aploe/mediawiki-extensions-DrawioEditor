@@ -73,7 +73,10 @@
 			"styles": "ext.drawioeditor.css"
 		},
 		"ext.drawioeditor": {
-			"scripts": "ext.drawioeditor.js",
+			"scripts": [
+				"ext.drawioeditor.js",
+				"ext.drawioeditor.hover.js"
+			],
 			"dependencies": [
 				"jquery.ui",
 				"mediawiki.api"
